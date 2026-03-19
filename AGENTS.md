@@ -67,6 +67,13 @@ When code is added:
 - Prefer strong map, panel, inventory, and encounter metaphors over feed-like layouts.
 - Keep mobile ergonomics in mind from the start.
 - Preserve readability and accessibility even with retro styling.
+- All visual decisions must conform to the design system: [`docs/design-system.md`](docs/design-system.md).
+  - Master color palette (32 colors), do not introduce colors outside it.
+  - Typography: Press Start 2P, defined size scale only.
+  - Tile grid: 16px base unit. All UI and sprites snap to this grid.
+  - Portrait-only orientation. Do not design for landscape.
+  - Asset export: 1×/2×/3× nearest-neighbor for sprites/icons; 3× only for scenes and full screens.
+  - Asset paths and naming conventions are defined there — follow them exactly.
 
 ## Collaboration Notes
 
