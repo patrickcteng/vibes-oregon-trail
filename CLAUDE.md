@@ -2,6 +2,8 @@
 
 This file is loaded automatically by Claude Code at the start of every session.
 
+**Canonical agent instructions live in [`AGENTS.md`](AGENTS.md).** This file imports it (see *Imported Context* below) and adds Claude-specific notes only — anything that applies to any agent tool belongs in `AGENTS.md`, not here. Project-level agent config lives in `.agents/` at the repo root; `.claude/` is a symlink to it so existing Claude Code tooling still works.
+
 ## What This Project Is
 
 A configurable multiplayer journey game — Oregon Trail-inspired — built with TypeScript, Expo, and React Native. The engine is designed to support multiple campaigns, not just Oregon Trail.
