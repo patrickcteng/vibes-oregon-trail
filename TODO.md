@@ -13,7 +13,7 @@ This is the build-first scope. If a task does not help deliver this slice, defer
 - [ ] Start a new run from a config-defined scenario.
 - [ ] View route progress, current checkpoint, supplies, party condition, and time.
 - [ ] Travel through 6 to 8 landmarks/checkpoints.
-- [ ] Choose from a small action set at checkpoints: travel, rest, forage, and shop when available.
+- [ ] Choose from a small action set at checkpoints: travel, rest, forage, hunt, and shop when available.
 - [ ] Resolve deterministic events that change resources, time, or status.
 - [ ] Reach a final destination or fail from resource collapse, animal collapse, or party collapse.
 
@@ -29,16 +29,17 @@ This is the build-first scope. If a task does not help deliver this slice, defer
 - [ ] Implement core resources: food, money, wagon durability, and animal health.
 - [ ] Implement time progression plus one simple time acceleration control.
 - [ ] Implement one deterministic store flow and at least three deterministic event patterns.
-- [ ] Implement local save/load for a single in-progress run.
+- [ ] Implement one minimal hunting sub-simulation with aim/fire input, ammunition spend, food reward, abort handling, and typed result return.
+- [ ] Implement local save/load for a single in-progress run, including pending sub-simulation metadata.
 - [ ] Build simple retro-styled placeholder UI for map, checkpoint, store, event, and run summary screens.
 
 ### Acceptance criteria
 
 - [ ] A new run can be created entirely from config with no hardcoded landmark sequence in app code.
 - [ ] One short Oregon Trail-inspired scenario is playable end to end in roughly 20 to 30 minutes.
-- [ ] The same seed produces the same non-AI outcomes.
+- [ ] The same seed produces the same non-AI strategic/event outcomes, and recorded sub-simulation metadata reproduces hunting outcomes.
 - [ ] At least one route fork creates a meaningful risk/reward difference.
-- [ ] The player can buy supplies, hit events, recover or deteriorate, and either win or lose.
+- [ ] The player can buy supplies, hunt for food, hit events, recover or deteriorate, and either win or lose.
 - [ ] The prototype remains fully playable with no network and no AI service.
 - [ ] The data model still leaves room for 1 to 5 players later.
 
@@ -116,6 +117,7 @@ This is the build-first scope. If a task does not help deliver this slice, defer
 - [ ] Define the checkpoint decision menu.
 - [ ] Define event decision patterns.
 - [ ] Define store interactions.
+- [ ] Define the minimal hunting sub-simulation loop and result contract.
 - [x] Defer private choices until after multiplayer implementation begins.
 - [ ] Define branching endings.
 
@@ -274,6 +276,7 @@ This is the build-first scope. If a task does not help deliver this slice, defer
 - [ ] Add tests for route progression and checkpoint branching.
 - [ ] Add tests for deterministic seeded outcomes.
 - [ ] Add tests that the game remains playable with AI disabled.
+- [ ] Add tests for sub-simulation launch, completed results, aborted results, and save/replay metadata.
 - [ ] Add multiplayer tests for 1-player through 5-player sessions.
 - [ ] Add tests for drop/rejoin and delayed decision submission.
 - [ ] Add tests for save/load across versioned configs.

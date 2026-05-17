@@ -2,7 +2,7 @@
 
 A design doc for the moment-to-moment experience of the first playable campaign. Vivid enough to imagine the game in your head; concrete enough to argue with; structured so the same engine bones can later host very different campaigns. The first stress tests are Carrier Command (real-time strategy + tactical) and a D&D-style campaign with an LLM dungeon master.
 
-This is not a spec. Numbers presented as `TUNING` are placeholders that get filled in during the simulation-layer build with a balance sweep. Everything else is a real design decision.
+This is not a spec. Numbers presented as `TUNING` are placeholders that get filled in during the simulation-layer build with a balance sweep. Section 17 also preserves explicit open questions. Everything else is a real design decision.
 
 Reads top-to-bottom in about twenty minutes.
 
@@ -36,7 +36,7 @@ You press on. The screen flashes. The wagon condition bar drops 7% (worse than t
 
 Day 38: Chimney Rock (`landmark_chimney_rock.png`). The spire fills the upper two thirds of the scene. Action menu again. You *Rest* for two days. Morale ticks up. Food ticks down. Your sick party member ("Hannah, ill") moves from `status_sick.png` back to `status_healthy.png`.
 
-Day 40: a fork in the route. The map zooms in. *Continue along the North Platte (longer, safer)* or *Take the Sublette Cutoff (shorter, drier)*. The tradeoffs are listed before you commit. You take the cutoff because you're low on food and the shorter route compresses the food-burn window. You spend the next eight days watching the water bar slide down.
+Day 40: a fork in the route. The map zooms in. *Continue along the Fort Bridger detour (longer, safer, restock)* or *Take the Sublette Cutoff (shorter, drier)*. The tradeoffs are listed before you commit. You take the Fort Bridger detour because your wagon is bruised and the chance to restock is worth the extra days. You spend the next twelve days watching food slide down, but the water bar never gets scary.
 
 Day 52: Fort Bridger. You restock. You sell the spare wagon parts you've been carrying. You feel okay about your run for the first time.
 
@@ -78,7 +78,7 @@ The minute-to-minute structure underneath the narrative above:
 
 Travel ticks consume days and resources. Checkpoints are nodes that interrupt travel and surface a decision. Decisions resolve in one of three ways: an event card with previewed choices, a direct state mutation (Rest 2 days), or a hand-off into a *sub-simulation* — a self-contained gameplay mode with its own controls and screens. The sub-sim runs to a conclusion and returns a typed state delta. Consequences are applied, the player returns to the loop.
 
-**Engine callout.** `GameSession` runs this loop. The current position is a `NodeGraph` cursor. Each `Node` exposes an `Action` set, sourced from a `Director` (Section 14). Choosing an `Action` produces either an `Encounter` (resolved in-place) or launches a `Simulation` (Section 9). Both return a state delta applied to `Vessel`, `Crew`, and `Resource` containers. The next loop iteration begins.
+**Engine callout.** `GameSession` runs this loop. The current position is a `NodeGraph` cursor. Each `Node` exposes an `Action` set, sourced from a `Director` (Section 15). Choosing an `Action` produces either an `Encounter` (resolved in-place) or launches a `Simulation` (Section 9). Both return a state delta applied to `PartyState`, `PlayerState`, `Vessel`, `Crew`, and `Resource` containers. The next loop iteration begins.
 
 The loop is identical across campaigns. The cursor moves through an `archipelago` instead of a `trail`. The action set at an island is `capture` / `refuel` / `produce` / `defend` instead of `travel` / `rest` / `forage` / `shop`. The sub-sim that fires from a Combat action is a real-time tactical instead of a hunting mini-game. The wiring is the same.
 
@@ -90,7 +90,7 @@ The wagon is the mobile home base. It carries everything: the crew, the supplies
 
 Visual: `wagon_idle.png` when parked, the four-frame `wagon_travel_*` cycle while traveling, `wagon_damaged.png` below 30% condition, `wagon_destroyed.png` at 0%.
 
-The wagon does not move on its own. It needs the oxen team. If the oxen die or are sold, the wagon stops. (Whether oxen are modeled as a `Resource` quantity or a small `Crew` of two animals is an open question — see Section 16.)
+The wagon does not move on its own. It needs the oxen team. If the oxen die or are sold, the wagon stops. (Whether oxen are modeled as a `Resource` quantity or a small `Crew` of two animals is an open question — see Section 17.)
 
 A run ends if the wagon hits 0% condition with no spare parts AND no money AND no nearby store. This is rare. Most runs end from a slower spiral, not a single catastrophic event. See Section 11.
 
@@ -191,19 +191,19 @@ Linear order with the fork in the middle:
 
 Each node has a `type` that controls which actions are available there:
 
-| Node type     | Actions available                                            |
-|---------------|--------------------------------------------------------------|
-| `town`        | Travel, Rest, Shop (large inventory), Save                   |
-| `fort`        | Travel, Rest, Shop (modest inventory), Talk-to-NPC           |
-| `crossing`    | Ford / Caulk / Pay-toll (if available), then Travel          |
-| `landmark`    | Travel, Rest, Look (flavor text + small morale boost)        |
-| `mountain`    | Travel (slower), Rest, Hunt                                  |
+| Node type     | Actions available                                             |
+|---------------|---------------------------------------------------------------|
+| `town`        | Travel, Rest, Forage, Shop (large inventory), Save            |
+| `fort`        | Travel, Rest, Forage, Hunt, Shop (modest inventory)           |
+| `crossing`    | Ford / Caulk / Pay-toll (if available), Forage, then Travel   |
+| `landmark`    | Travel, Rest, Forage, Look (flavor text + small morale boost) |
+| `mountain`    | Travel (slower), Rest, Forage, Hunt                           |
 
 The Fort Bridger detour is conditional: if the player chose the Sublette Cutoff at the fork, they skip Fort Bridger entirely. This is the single piece of state-dependent route shape in the slice.
 
 The map (`map_background.png`) shows the full route as a dotted parchment line from lower-right to upper-left. Visited nodes use `node_visited.png`, the current node uses `node_current.png`, unvisited nodes use `node_unvisited.png` or their type-specific variant (`node_fort.png`, `node_crossing.png`, `node_mountain.png`, `node_town.png`). The fork's two branches are both drawn lightly until the player commits.
 
-**Engine callout.** `NodeGraph` is a graph of `Node`s. Each `Node` carries its type, its `Action` set, its `Encounter` table, its presentation metadata (which `landmark_*.png` to render), and any conditional traversal predicates. OT's graph is directed and mostly linear. Carrier Command's is undirected and densely connected. D&D's is *generated on demand* by an LLM `Director` (Section 14) as the player explores — same `NodeGraph` data structure, different content source.
+**Engine callout.** `NodeGraph` is a graph of `Node`s. Each `Node` carries its type, its `Action` set, its `Encounter` table, its presentation metadata (which `landmark_*.png` to render), and any conditional traversal predicates. OT's graph is directed and mostly linear. Carrier Command's is undirected and densely connected. D&D's is *generated on demand* by an LLM `Director` (Section 15) as the player explores — same `NodeGraph` data structure, different content source.
 
 ---
 
@@ -226,7 +226,7 @@ Modern UX: previews are always honest about the *expected* cost. Stochastic outc
 
 When an `Encounter` fires mid-travel, the screen transitions to an event card (`event_*.png`) with a title, two to three sentences of text, and two or three response buttons. Each button shows its previewed cost and a hint at its risk profile (`Press on · −1 day · risk of illness`).
 
-Outcomes are deterministic against the seed for static content. The same seed + same decision = the same outcome. (Tap-replay of a bad run produces the same dice rolls — this is intentional for testing and for replays.) LLM-generated content is recorded in the autosave so replays remain reproducible — see Section 14.
+Outcomes are deterministic against the seed for static content. The same seed + same decision = the same outcome. (Tap-replay of a bad run produces the same dice rolls — this is intentional for testing and for replays.) Skill-based sub-sims add their result or input log to the replay record; LLM-generated content is recorded in the autosave so replays remain reproducible — see Section 15.
 
 The text body comes from the `Director`. A static director reads pre-authored copy; an LLM director generates variants in real time.
 
@@ -281,17 +281,21 @@ The pattern is the same in every campaign:
 
 ### 9.2 The contract
 
-Every sub-sim takes a typed input (the strategic state it needs) and returns a typed output (the state delta to apply). The strategic layer has no idea what happens inside the sub-sim. The sub-sim has no idea what came before or comes after.
+Every sub-sim takes a typed input: an immutable strategic-state snapshot plus the specific capabilities it is allowed to use. A hunt gets ammunition available, terrain, party modifiers, and allowed result types. It does not get a mutable `GameSession`. A CC combat engagement gets the participating units, local map, fuel/ammo caps, and allowed control-point outcomes. A D&D combat encounter gets the combatants, initiative rules, and allowed reward/damage bounds.
 
-This boundary is what keeps the engine sane: campaigns can ship totally different sub-sim implementations — turn-based, real-time, dice-driven, physics-driven — without touching the strategic loop. The strategic loop just sees `launch(SimInput) → SimResult`.
+The sub-sim owns temporary internal state while it is active. On completion, abort, or interruption recovery, it returns a typed `SimResult` with four things: `status` (`completed` or `aborted`), a strategic state delta, an event log for the run history, and replay metadata. The replay metadata can be a compact input log, a final result snapshot, or both, depending on the sub-sim.
+
+This boundary is what keeps the engine sane: campaigns can ship totally different sub-sim implementations — menu-based, real-time, dice-driven, physics-driven — without touching the strategic loop. The strategic loop just sees `launch(SimInput) → SimResult`. Strategic state is read-only while the sub-sim runs and mutates only when the `SimResult` is committed.
 
 Sub-sims also have their own visual treatment. The hunting sub-sim uses a different scene composition than the route view. The CC combat sub-sim is a top-down tactical layer; the strategic CC view is a campaign map. The mode switch is signaled to the player with a deliberate transition (a fade, a curtain wipe) so the rules-shift is obvious.
 
+Autosave records a `pendingSimulation` when the app backgrounds or is interrupted mid-sub-sim. For the OT slice, resuming mid-hunt restores the hunt if the renderer can safely reconstruct it; otherwise the hunt resolves as an aborted result with ammunition spent so far and no positive food reward. Longer future sub-sims, like CC combat, should treat `pendingSimulation` as required resumable state rather than a forfeit.
+
 ### 9.3 Why sub-sims matter for the engine
 
-The original Carrier Command lens (Section 15) flagged tactical sub-screens as the *most likely* abstraction to break. Making sub-sims first-class de-risks that: every campaign exercises the same pattern. The OT slice ships at least one (hunting) to prove the pattern works before CC pushes it harder.
+The original Carrier Command lens (Section 16) flagged tactical sub-screens as the *most likely* abstraction to break. Making sub-sims first-class de-risks that: every campaign exercises the same pattern. The OT slice ships at least one (hunting) to prove the pattern works before CC pushes it harder.
 
-**Engine callout.** `Simulation` is a self-contained gameplay mode with its own update tick, render layer, and input handling. It exposes `start(input: SimInput): void` and `onComplete(callback: (result: SimResult) => void)`. The strategic loop wraps the launch in a "drop into sim" UI transition and a "return with delta" hand-off. Sub-sims can be turn-based (hunting), real-time (CC combat), or hybrid (D&D combat with initiative). The engine provides the lifecycle and the data contract; each `Simulation` implementation owns its own rules and rendering.
+**Engine callout.** `Simulation` is a self-contained gameplay mode with its own update tick, render layer, and input handling. It exposes `start(input: SimInput): void` and `onComplete(callback: (result: SimResult) => void)`. The strategic loop wraps the launch in a "drop into sim" UI transition and a "return with delta" hand-off. Sub-sims can be menu-based (store), real-time (hunting, CC combat), or hybrid (D&D combat with initiative). The engine provides the lifecycle and the data contract; each `Simulation` implementation owns its own rules and rendering.
 
 ---
 
@@ -325,7 +329,9 @@ What does *not* end a run:
 
 **Setbacks are recoverable.** The game punishes a *pattern* of neglect over a series of decisions, not a single dice roll. This is the central modern-design departure from 1985 Oregon Trail, which would happily end your run on day three because you contracted typhoid.
 
-**Autosave** writes after every checkpoint (every decision commit, not every travel day, and after every sub-sim completes). A failure offers a one-tap *Restart from last checkpoint* option, which rolls back to the most recent autosave. Replays use the same seed for deterministic content, and recorded LLM responses for generated content (Section 14), so dice rolls and event copy repeat.
+**Autosave** writes after every checkpoint (every decision commit, not every travel day, and after every sub-sim completes). If the app is interrupted mid-sub-sim, the save contains a `pendingSimulation` record so the game can resume or resolve the sub-sim consistently. A failure offers a one-tap *Restart from last checkpoint* option, which rolls back to the most recent committed autosave.
+
+Replays use the same seed for deterministic content, recorded sub-sim replay metadata for skill-based modes, and recorded LLM responses for generated content (Section 15), so dice rolls, hunt outcomes, and event copy repeat.
 
 This is balanced against "saves trivialize the game" by limiting the rollback to the *last* checkpoint (no save-scumming back five hours), and by keeping the campaign short enough that a full restart is also viable.
 
@@ -360,19 +366,33 @@ The 16-bit pixel art lives inside a modern phone shell. Specific patterns:
 - **Autosave** to local device after every checkpoint and every sub-sim completion.
 - **Cloud sync** to iCloud (iOS) and Google Drive (Android), opt-in, off by default. Sync window: the most recent autosave per device.
 - **Share-as-image**: at end of run, a one-tap action generates a PNG of the route map with the player's path drawn in, key stats overlaid (days survived, distance traveled, party at end), and a one-line ending caption. Designed for messaging apps and socials.
-- **Optional LLM director**: per Section 14, a toggle in settings enables LLM-generated content variants. Off by default in the slice. The deterministic baked content is always the fallback.
+- **Optional LLM director**: per Section 15, a toggle in settings enables LLM-generated content variants. Off by default in the slice. The deterministic baked content is always the fallback.
 
 None of these features ship for the slice except autosave and dark mode. They are listed here so the data model and UI patterns leave room for them.
 
 ---
 
-## 13. What the engine has to do
+## 13. Multiplayer stance
+
+The first playable campaign is single-device and single-controller: one local player makes decisions for the whole wagon party. That keeps the slice focused on whether the journey loop is fun.
+
+The engine still treats multiplayer as a first-class future shape. A `GameSession` has a `players` list from the start, even if the slice contains one local player. Shared campaign facts live in `PartyState`: route position, current node, wagon/vessel condition, shared inventory, party morale, public crew condition, event history, and committed decisions. Per-player facts live in `PlayerState`: identity, local preferences, private choices, future hidden information, and any data that may need encrypted transport later.
+
+Async multiplayer later changes who is allowed to commit an `Action`, not what an `Action` is. A checkpoint decision can become a leader commit, a vote, or a proposal/confirm flow without rewriting the route loop. The important boundary is that `PartyState` is the public truth the group shares, while `PlayerState` is the private or player-owned layer the engine keeps separate.
+
+**Engine callout.** `GameSession` owns `players`, `PartyState`, and a map of `PlayerState` records keyed by player id. The OT slice uses one local player and mostly empty private state. Future async play adds decision ownership and synchronization around the same state objects. Future encryption wraps transport/storage for selected `PlayerState` or message payloads without forcing `PartyState` and private data into one blob.
+
+---
+
+## 14. What the engine has to do
 
 Pulling the inline engine callouts into one consolidated list. Each item is one line. Schemas come during the simulation-layer build, not in this doc.
 
 - `ScenarioPack` — pre-authored content: `NodeGraph` shape, `Node` action sets, `Encounter` tables, endings, presentation metadata (which `landmark_*.png` per node, which `event_*.png` per encounter, copy strings).
 - `RulePack` — pacing knobs, resource burn rates and interactions, economy (prices, store inventories), `TimeModel`, `Goal` evaluator, AI permissions and budgets.
-- `GameSession` — current campaign state, RNG seed, checkpoint history, autosave snapshots, recorded LLM responses for replay.
+- `GameSession` — current campaign state, players, RNG seed, checkpoint history, autosave snapshots, pending simulation state, recorded sub-sim replay metadata, and recorded LLM responses for replay.
+- `PartyState` — public shared state: route position, current node, wagon/vessel condition, shared inventory, party morale, public crew condition, event history, and committed decisions.
+- `PlayerState` — per-player state: identity, local preferences, private choices, future hidden information, and encryption-ready player-owned data.
 - `Vessel` — mobile state container (roster of one for OT, can be many for CC) with condition meter, inventory, propulsion dependency, position on the `NodeGraph`.
 - `Crew` — roster of `Agent`s with health, morale, status effects, optional role/skills, private data slot.
 - `Resource` — typed quantified item with id, amount, optional max, unit.
@@ -382,13 +402,13 @@ Pulling the inline engine callouts into one consolidated list. Each item is one 
 - `NodeGraph` and `Node` — graph structure of typed nodes with action sets and encounter tables.
 - `TimeModel` — pluggable turn-based or real-time-tick component, declared per loop (strategic and per-Simulation).
 - `Goal` — pluggable win/lose evaluator on the rule pack.
-- `Director` — content source. Variants: `StaticDirector` (baked scenario pack), `LLMDirector` (LLM-driven), `HybridDirector` (composition). Section 14.
+- `Director` — content source. Variants: `StaticDirector` (baked scenario pack), `LLMDirector` (LLM-driven), `HybridDirector` (composition). Section 15.
 
 The engine is **framework-agnostic TypeScript**. None of it imports React Native. The UI layer (Section 12) consumes the engine through plain function calls and observable state. `Simulation` implementations may use React Native or a different renderer (Skia, etc.) per sub-sim's needs — the engine itself stays renderer-agnostic.
 
 ---
 
-## 14. Content sources & directors
+## 15. Content sources & directors
 
 A scenario pack is a *content source*. The first playable campaign ships its content source as a static TypeScript object: every node, every event, every line of copy is authored ahead of time. This is the deterministic, AI-free fallback the project's pillars require.
 
@@ -398,7 +418,7 @@ The engine supports two other content shapes:
 
 **Hybrid content.** Pre-authored skeleton (the eight Oregon Trail landmarks stay fixed) with LLM-generated leaves (event flavor text, NPC dialogue, store gossip varies per playthrough). The toggle is per-content-type: a player can run the slice with deterministic events plus AI-generated NPC dialogue, or vice versa.
 
-### 14.1 The Director interface
+### 15.1 The Director interface
 
 Every campaign provides a `Director` implementation:
 
@@ -408,7 +428,7 @@ Every campaign provides a `Director` implementation:
 
 The strategic loop only ever talks to its `Director`. It calls `director.nextNode()`, `director.eventFor(node)`, `director.dialogueFor(npc)`, `director.adjudicate(action, context)`. The `Director` decides whether to read from a pack, call an LLM, or compose both.
 
-### 14.2 Safety, cost, latency
+### 15.2 Safety, cost, latency
 
 LLM content has three properties the engine has to manage explicitly:
 
@@ -416,7 +436,7 @@ LLM content has three properties the engine has to manage explicitly:
 - **Cost.** LLM calls cost money. The `Director` declares a per-decision budget and a per-session cap, both `TUNING`. When the budget is exhausted, the campaign degrades to its static fallback rather than failing.
 - **Latency.** Generation can take seconds. The engine never blocks the player on a network call. Either content is generated speculatively in the background while the player is in the previous loop iteration, or the player sees a short "the DM is thinking..." interstitial with a guaranteed bounded wait (`TUNING`, probably 3–5 seconds max before falling back).
 
-### 14.3 Determinism and replay
+### 15.3 Determinism and replay
 
 Static scenario packs are deterministic against the RNG seed (same seed + same decisions = same outcomes). LLM-generated content cannot be deterministic in the same way — the same prompt to the same model can return different text on a different day.
 
@@ -426,7 +446,7 @@ The engine handles this by **recording** generated content into the autosave sna
 
 ---
 
-## 15. Campaign lenses: Carrier Command and D&D
+## 16. Campaign lenses: Carrier Command and D&D
 
 The whole point of the abstraction set above is to prove, on paper, that the same engine can host very different campaigns. Side-by-side mapping for the three most distant cases:
 
@@ -434,6 +454,8 @@ The whole point of the abstraction set above is to prove, on paper, that the sam
 |-------------------|---------------------------------------------------|-------------------------------------------------------|-------------------------------------------------------|
 | `Vessel`          | Wagon (one)                                       | Aircraft carrier (one, later many)                    | Adventuring party as an abstract "we" (one)           |
 | `Crew`            | Five settlers with health/morale                  | Squadron pilots, ship officers, deck crew             | Player characters with classes, levels, HP, slots     |
+| `PartyState`      | Shared wagon state, route, supplies, event log    | Shared carrier task force state and island campaign   | Shared party state, quest log, visible world state    |
+| `PlayerState`     | One local player now; private slots reserved      | Officer/pilot assignments and private preferences     | Individual PC ownership, private notes, hidden info   |
 | `NodeGraph`       | Directed, linear with one fork (pre-authored)     | Undirected archipelago (pre-authored)                 | Generated on demand by `LLMDirector`                  |
 | `Node` types      | town, fort, crossing, landmark, mountain          | island_friendly, island_neutral, island_hostile       | room, corridor, shrine, lair, town, wilderness        |
 | `Action`s at node | Travel, Rest, Forage, Hunt, Shop                  | Deploy Walrus, deploy Manta, capture, refuel, defend  | Search, parley, attack, cast, retreat, rest           |
@@ -446,14 +468,14 @@ The whole point of the abstraction set above is to prove, on paper, that the sam
 | `Goal`            | Reach Willamette Valley alive                     | Control N islands by turn T, OR destroy enemy carrier | DM-defined per campaign (quest, level, story beat)    |
 | Failure           | Vessel/crew/resource collapse                     | Carrier sunk OR no islands controlled OR enemy wins   | Party wipe OR DM-declared ending                      |
 
-### 15.1 Where it gets interesting
+### 16.1 Where it gets interesting
 
 - **Real-time vs turn-based.** OT's swipe-per-day pacing is a thin wrapper over a turn-based strategic model. CC's classic real-time-with-pause model needs a `TimeModel` that ticks autonomously and allows the player to pause for orders. D&D needs scene-level turns at the strategic level and initiative-order turns inside combat sub-sims. The `TimeModel` abstraction has to support all three at *both* the strategic and sub-sim levels independently.
 - **Static vs generated content.** OT proves the static path. D&D proves the generated path. CC will probably stay mostly static but might use LLM generation for variety. The `Director` abstraction has to support all three campaigns without forking the engine.
 - **Bidirectional traversal.** OT only moves forward. CC moves freely. D&D moves freely *and* generates new nodes as it goes. The `NodeGraph` abstraction supports all three; the rule pack constrains traversal predicates.
 - **Per-Agent control.** OT's `Crew` is mostly passive (you don't issue orders to individual settlers). CC's pilots get individually controlled in tactical missions. D&D's PCs are individually controlled in combat sub-sims and roleplay scenes. The `Agent` data model leaves room for an `assignableTo` field and a `controlMode` so per-campaign code can attach controls to specific agents.
 
-### 15.2 Where it would break (early warnings)
+### 16.2 Where it would break (early warnings)
 
 - **Multi-vessel ownership.** CC has multiple `Vessel`s the player builds over time. OT has exactly one. The `Vessel` abstraction is a roster, not a singleton, even though the OT slice's roster has length one.
 - **DM safety boundary.** The `LLMDirector` cannot have unmediated write access to game state. Every LLM output is validated against schemas before it touches `GameSession`. If a D&D player asks the DM to "give me a +5 vorpal sword," the DM can narrate that — but the actual inventory mutation has to pass through the loot-distribution schema, which is bounded by level and party size. This is the *bounded GM* pillar from the project docs, enforced architecturally.
@@ -463,7 +485,7 @@ If a future Carrier Command or D&D pass reveals an abstraction that does not fit
 
 ---
 
-## 16. Open questions
+## 17. Open questions
 
 Deliberately left unresolved by this doc. Filled in during the simulation-layer build, with a balance sweep, or in a later design pass.
 
@@ -476,14 +498,14 @@ Deliberately left unresolved by this doc. Filled in during the simulation-layer 
 - [ ] Whether **morale** is its own first-class resource or derived from food + health + recent event outcomes.
 - [ ] Whether **oxen** are modeled as a `Resource` quantity or a tiny `Crew` of two `Agent`s.
 - [ ] Whether the slice ships with **one fork** (just Sublette vs Bridger) or **two** (also The Dalles raft-vs-bypass).
-- [ ] Whether the slice ships with **hunting** as a real sub-sim or as a deterministic outcome card. The doc assumes a real sub-sim — this is the abstraction's first proving ground.
+- [ ] What the minimum fun version of the **hunting** sub-sim includes beyond aim, fire, ammo spend, and food reward.
 - [ ] Whether **autosave** writes after every checkpoint (proposed default) or every travel day.
 - [ ] Whether **dark mode** is the only mode in the slice or a settings-toggle from day one.
 
 ### Sub-simulations
 - [ ] What renderer the OT hunting sub-sim uses (RN `<Image>` + `Animated` vs. Skia vs. something else).
-- [ ] Whether a sub-sim's internal state is part of the autosave (a player exiting mid-hunt: resume the hunt, or count it as a forfeit?).
-- [ ] How sub-sims handle phone interruptions (incoming call, app backgrounded mid-CC-engagement).
+- [ ] How much internal hunting state is worth saving versus resolving an interrupted hunt as an aborted result.
+- [ ] Which future sub-sims require full interruption recovery instead of the slice's lightweight hunt fallback.
 - [ ] Whether sub-sims can themselves launch nested sub-sims, or whether the loop is strictly one level deep.
 
 ### LLM director
